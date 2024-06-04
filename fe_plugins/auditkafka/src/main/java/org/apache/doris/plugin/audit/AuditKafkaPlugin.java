@@ -46,10 +46,13 @@ import java.io.InputStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /*
  * This plugin will load audit log to specified doris table at specified interval
@@ -74,6 +77,7 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
     private String brokersUrl;
     private String topicName;
     private String clusterName;
+    private List<Pattern> filtersEventStmt;
 
     private BlockingQueue<AuditEvent> auditEventQueue;
     private Producer<String, String> producer;
@@ -86,7 +90,7 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
 
     public AuditKafkaPlugin() {
         pluginInfo = new PluginInfo(PluginMgr.BUILTIN_PLUGIN_PREFIX + "AuditKafka", PluginType.AUDIT,
-                "add audit kafka, to send audit log to kafka top", DigitalVersion.fromString("1.0.0"),
+                "add audit kafka, to send audit log to kafka top", DigitalVersion.fromString("1.0.1"),
                 DigitalVersion.fromString("1.8.31"), AuditKafkaPlugin.class.getName(), null, null);
     }
 
@@ -155,6 +159,12 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
         this.clusterName = props.getProperty("cluster");
         this.brokersUrl = props.getProperty("kafka.brokers");
         this.topicName = props.getProperty("kafka.topic");
+        String filterEventStmt = props.getProperty("filter.event.stmt");
+        String[] filterEventStmtArr = Strings.isNullOrEmpty(filterEventStmt) ? new String[0] : GSON.fromJson(filterEventStmt, String[].class);
+        this.filtersEventStmt = new ArrayList<>(filterEventStmtArr.length);
+        for (String regex : filterEventStmtArr) {
+            this.filtersEventStmt.add(Pattern.compile(regex));
+        }
     }
 
     public boolean eventFilter(AuditEvent.EventType type) {
@@ -162,7 +172,12 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
     }
 
     public void exec(AuditEvent event) {
-        if (!event.isQuery || Strings.isNullOrEmpty(event.workloadGroup) || Strings.isNullOrEmpty(event.clientIp)) return;
+        if (shouldFilter(event)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("filtered event {}", event.stmt);
+            }
+            return;
+        }
         try {
             auditEventQueue.add(event);
         } catch (Exception e) {
@@ -175,6 +190,18 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
                         + " total discard num: {}", discardLogNum, e);
             }
         }
+    }
+
+    private boolean shouldFilter(AuditEvent event) {
+        if (!event.isQuery
+                || Strings.isNullOrEmpty(event.workloadGroup)
+                || Strings.isNullOrEmpty(event.clientIp)
+                || Strings.isNullOrEmpty(event.stmt)
+        ) return true;
+        for (Pattern filter : filtersEventStmt) {
+            if (filter.matcher(event.stmt).matches()) return true;
+        }
+        return false;
     }
 
     private String toJsonString(AuditEvent event) {
