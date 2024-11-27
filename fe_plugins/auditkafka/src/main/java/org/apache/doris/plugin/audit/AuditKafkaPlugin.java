@@ -193,8 +193,7 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
     }
 
     private boolean shouldFilter(AuditEvent event) {
-        if (!event.isQuery
-                || Strings.isNullOrEmpty(event.workloadGroup)
+        if (Strings.isNullOrEmpty(event.workloadGroup)
                 || Strings.isNullOrEmpty(event.clientIp)
                 || Strings.isNullOrEmpty(event.stmt)
         ) return true;
