@@ -54,6 +54,9 @@ import org.apache.doris.datasource.CatalogIf;
 import org.apache.doris.datasource.ExternalDatabase;
 import org.apache.doris.datasource.ExternalTable;
 import org.apache.doris.datasource.InternalCatalog;
+import org.apache.doris.datasource.ck.CKExternalCatalog;
+import org.apache.doris.datasource.ck.CKExternalDatabase;
+import org.apache.doris.datasource.ck.CKExternalTable;
 import org.apache.doris.datasource.es.EsExternalCatalog;
 import org.apache.doris.datasource.es.EsExternalDatabase;
 import org.apache.doris.datasource.es.EsExternalTable;
@@ -228,6 +231,7 @@ public class GsonUtils {
     private static RuntimeTypeAdapterFactory<CatalogIf> dsTypeAdapterFactory = RuntimeTypeAdapterFactory.of(
                     CatalogIf.class, "clazz")
             .registerSubtype(InternalCatalog.class, InternalCatalog.class.getSimpleName())
+            .registerSubtype(CKExternalCatalog.class, CKExternalCatalog.class.getSimpleName())
             .registerSubtype(HMSExternalCatalog.class, HMSExternalCatalog.class.getSimpleName())
             .registerSubtype(EsExternalCatalog.class, EsExternalCatalog.class.getSimpleName())
             .registerSubtype(JdbcExternalCatalog.class, JdbcExternalCatalog.class.getSimpleName())
@@ -263,6 +267,7 @@ public class GsonUtils {
                     DatabaseIf.class, "clazz")
             .registerSubtype(ExternalDatabase.class, ExternalDatabase.class.getSimpleName())
             .registerSubtype(EsExternalDatabase.class, EsExternalDatabase.class.getSimpleName())
+            .registerSubtype(CKExternalDatabase.class, CKExternalDatabase.class.getSimpleName())
             .registerSubtype(HMSExternalDatabase.class, HMSExternalDatabase.class.getSimpleName())
             .registerSubtype(JdbcExternalDatabase.class, JdbcExternalDatabase.class.getSimpleName())
             .registerSubtype(IcebergExternalDatabase.class, IcebergExternalDatabase.class.getSimpleName())
@@ -276,6 +281,7 @@ public class GsonUtils {
                     TableIf.class, "clazz").registerSubtype(ExternalTable.class, ExternalTable.class.getSimpleName())
             .registerSubtype(EsExternalTable.class, EsExternalTable.class.getSimpleName())
             .registerSubtype(OlapTable.class, OlapTable.class.getSimpleName())
+            .registerSubtype(CKExternalTable.class, CKExternalTable.class.getSimpleName())
             .registerSubtype(HMSExternalTable.class, HMSExternalTable.class.getSimpleName())
             .registerSubtype(JdbcExternalTable.class, JdbcExternalTable.class.getSimpleName())
             .registerSubtype(IcebergExternalTable.class, IcebergExternalTable.class.getSimpleName())

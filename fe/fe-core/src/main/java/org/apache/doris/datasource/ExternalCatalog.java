@@ -38,6 +38,7 @@ import org.apache.doris.common.Version;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.common.util.Util;
+import org.apache.doris.datasource.ck.CKExternalDatabase;
 import org.apache.doris.datasource.es.EsExternalDatabase;
 import org.apache.doris.datasource.hive.HMSExternalCatalog;
 import org.apache.doris.datasource.hive.HMSExternalDatabase;
@@ -641,6 +642,8 @@ public abstract class ExternalCatalog
             return new ExternalMysqlDatabase(this, dbId);
         }
         switch (logType) {
+            case CK:
+                return new CKExternalDatabase(this, dbId, dbName);
             case HMS:
                 return new HMSExternalDatabase(this, dbId, dbName);
             case ES:

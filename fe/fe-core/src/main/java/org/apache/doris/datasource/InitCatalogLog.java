@@ -33,6 +33,7 @@ import java.util.List;
 @Data
 public class InitCatalogLog implements Writable {
     public enum Type {
+        CK,
         HMS,
         ES,
         JDBC,

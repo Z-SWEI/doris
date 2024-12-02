@@ -26,6 +26,7 @@ import org.apache.doris.common.Config;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.util.Util;
 import org.apache.doris.datasource.ExternalTable;
+import org.apache.doris.datasource.ck.CKExternalTable;
 import org.apache.doris.datasource.es.EsExternalTable;
 import org.apache.doris.datasource.hive.HMSExternalTable;
 import org.apache.doris.datasource.hive.HMSExternalTable.DLAType;
@@ -259,6 +260,10 @@ public class BindRelation extends OneAnalysisRuleFactory {
                     Plan viewBody = parseAndAnalyzeView(view, inlineViewDef, cascadesContext);
                     LogicalView<Plan> logicalView = new LogicalView<>(view, viewBody);
                     return new LogicalSubQueryAlias<>(qualifiedTableName, logicalView);
+                case CK_EXTERNAL_TABLE:
+                    return new LogicalFileScan(unboundRelation.getRelationId(),
+                            (CKExternalTable) table, qualifierWithoutTableName,
+                            Optional.empty(), Optional.empty());
                 case HMS_EXTERNAL_TABLE:
                     HMSExternalTable hmsTable = (HMSExternalTable) table;
                     if (Config.enable_query_hive_views && hmsTable.isView()) {

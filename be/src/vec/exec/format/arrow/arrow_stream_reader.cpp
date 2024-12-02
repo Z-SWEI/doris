@@ -42,14 +42,47 @@ ArrowStreamReader::ArrowStreamReader(RuntimeState* state, RuntimeProfile* profil
                                      const TFileRangeDesc& range,
                                      const std::vector<SlotDescriptor*>& file_slot_descs,
                                      io::IOContext* io_ctx)
-        : _state(state), _range(range), _file_slot_descs(file_slot_descs), _file_reader(nullptr) {
+        : _state(state), _profile(profile), _params(params), _range(range), _file_slot_descs(file_slot_descs), _io_ctx(io_ctx), _file_reader(nullptr) {
+    
+    if (_range.__isset.file_type) {
+        // for compatibility
+        _system_properties.system_type = _range.file_type;
+    } else {
+        _system_properties.system_type = _params.file_type;
+    }
+    _system_properties.properties = _params.properties;
+    _system_properties.hdfs_params = _params.hdfs_params;
+    if (_params.__isset.broker_addresses) {
+        _system_properties.broker_addresses.assign(_params.broker_addresses.begin(),
+                                                   _params.broker_addresses.end());
+    }
+
+    _file_description.path = _range.path;
+    _file_description.file_size = _range.__isset.file_size ? _range.file_size : -1;
+
+    if (_range.__isset.fs_name) {
+        _file_description.fs_name = _range.fs_name;
+    }
     TimezoneUtils::find_cctz_time_zone(TimezoneUtils::default_time_zone, _ctzz);
 }
 
 ArrowStreamReader::~ArrowStreamReader() = default;
 
 Status ArrowStreamReader::init_reader() {
-    RETURN_IF_ERROR(FileFactory::create_pipe_reader(_range.load_id, &_file_reader, _state, false));
+    if (_range.__isset.load_id) {
+        RETURN_IF_ERROR(FileFactory::create_pipe_reader(_range.load_id, &_file_reader, _state, false));
+    } else {
+        _io_ctx = nullptr;
+        _file_description.mtime = _range.__isset.modification_time ? _range.modification_time : 0;
+        io::FileReaderOptions reader_options =
+                FileFactory::get_reader_options(_state, _file_description);
+        RETURN_IF_ERROR(FileFactory::create_file_reader(_system_properties, _file_description,
+                                        reader_options, &_file_system, &_file_reader, _profile));
+        // RETURN_IF_ERROR(io::DelegateReader::create_file_reader(
+        //         _profile, _system_properties, _file_description, reader_options, &_file_system,
+        //         &_file_reader, io::DelegateReader::AccessMode::SEQUENTIAL, _io_ctx,
+        //         io::PrefetchRange(_range.start_offset, _range.size)));
+    }
     _pip_stream = ArrowPipInputStream::create_unique(_file_reader);
     return Status::OK();
 }

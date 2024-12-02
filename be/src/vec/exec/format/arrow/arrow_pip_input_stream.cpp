@@ -56,12 +56,13 @@ Status ArrowPipInputStream::HasNext(bool* get) {
     //    and the `RecordBatchStreamReader::Open` function will directly report an error when it gets this buff
     Slice file_slice(_read_buf, 4);
     size_t read_length = 0;
-    RETURN_IF_ERROR(_file_reader->read_at(0, file_slice, &read_length, NULL));
+    RETURN_IF_ERROR(_file_reader->read_at(_pos, file_slice, &read_length, NULL));
     if (read_length == 0) {
         *get = false;
     } else {
         *get = true;
     }
+    LOG(INFO) << "ArrowPipInputStream::HasNext " << *get << " size: " << read_length << "\n";
     return Status::OK();
 }
 
@@ -69,23 +70,24 @@ arrow::Result<int64_t> ArrowPipInputStream::Read(int64_t nbytes, void* out) {
     // RecordBatchStreamReader::Open will create a new reader that will stream a batch of arrow data.
     // But the first four bytes of this batch of data were taken by the HasNext function, so they need to be copied back here.
     uint8_t* out_ptr = (uint8_t*)out;
-    if (_begin) {
-        memmove(out_ptr, _read_buf, 4);
-        out_ptr += 4;
-        nbytes -= 4;
-    }
+    // if (_begin) {
+    //     memmove(out_ptr, _read_buf, 4);
+    //     out_ptr += 4;
+    //     nbytes -= 4;
+    // }
 
     Slice file_slice(out_ptr, nbytes);
     size_t read_length = 0;
-    Status status = _file_reader->read_at(0, file_slice, &read_length, NULL);
+    Status status = _file_reader->read_at(_pos, file_slice, &read_length, NULL);
     if (UNLIKELY(!status.ok())) {
         return arrow::Status::IOError("Error to read data from pip");
     }
-
-    if (_begin) {
-        read_length += 4;
-        _begin = false;
-    }
+    _begin = false;
+    _pos += read_length;
+    // if (_begin) {
+    //     read_length += 4;
+    //     _begin = false;
+    // }
     return (int64_t)read_length;
 }
 

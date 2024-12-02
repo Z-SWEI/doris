@@ -1,0 +1,97 @@
+diff --git a/be/src/vec/exec/format/arrow/arrow_stream_reader.cpp b/be/src/vec/exec/format/arrow/arrow_stream_reader.cpp
+index d1a1a9d35c..bbadabeb65 100644
+--- a/be/src/vec/exec/format/arrow/arrow_stream_reader.cpp
++++ b/be/src/vec/exec/format/arrow/arrow_stream_reader.cpp
+@@ -51,27 +51,18 @@ ArrowStreamReader::~ArrowStreamReader() = default;
+ Status ArrowStreamReader::init_reader() {
+     RETURN_IF_ERROR(FileFactory::create_pipe_reader(_range.load_id, &_file_reader, _state, false));
+     _pip_stream = ArrowPipInputStream::create_unique(_file_reader);
++    RETURN_IF_ERROR(next_arrow_record_batch());
+     return Status::OK();
+ }
+ 
+ Status ArrowStreamReader::get_next_block(Block* block, size_t* read_rows, bool* eof) {
+-    bool has_next = false;
+-    RETURN_IF_ERROR(_pip_stream->HasNext(&has_next));
+-    if (!has_next) {
++    if (_arrow_batches == nullptr) {
+         *read_rows = 0;
+         *eof = true;
+         return Status::OK();
+     }
+-
+     // create a reader to read data
+-    arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchStreamReader>> res_open =
+-            arrow::ipc::RecordBatchStreamReader::Open(_pip_stream.get(),
+-                                                      arrow::ipc::IpcReadOptions::Defaults());
+-    if (!res_open.ok()) {
+-        LOG(WARNING) << "failed to open stream reader: " << res_open.status().message();
+-        return Status::InternalError("failed to open stream reader: {}",
+-                                     res_open.status().message());
+-    }
++    arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchStreamReader>>& res_open = *_arrow_batches;
+     auto reader = std::move(res_open).ValueUnsafe();
+ 
+     // get arrow data from reader
+@@ -108,6 +99,7 @@ Status ArrowStreamReader::get_next_block(Block* block, size_t* read_rows, bool*
+     }
+ 
+     *eof = (*read_rows == 0);
++    RETURN_IF_ERROR(next_arrow_record_batch());
+     return Status::OK();
+ }
+ 
+@@ -115,6 +107,33 @@ Status ArrowStreamReader::get_columns(std::unordered_map<std::string, TypeDescri
+                                       std::unordered_set<std::string>* missing_cols) {
+     for (auto& slot : _file_slot_descs) {
+         name_to_type->emplace(slot->col_name(), slot->type());
++        missing_cols->emplace("c_tinyint");
++    }
++    return Status::OK();
++}
++
++Status ArrowStreamReader::next_arrow_record_batch() {
++    _arrow_batches.reset();
++    bool has_next = false;
++    RETURN_IF_ERROR(_pip_stream->HasNext(&has_next));
++    if (!has_next) {
++        return Status::OK();
++    }
++
++    // create a reader to read data
++    _arrow_batches = std::make_unique<arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchStreamReader>>>(
++                        arrow::ipc::RecordBatchStreamReader::Open(
++                            _pip_stream.get(),
++                            arrow::ipc::IpcReadOptions::Defaults()
++                        )
++                    );
++    if (!_arrow_batches->ok()) {
++        LOG(WARNING) << "failed to open stream reader: " << _arrow_batches->status().message();
++        return Status::InternalError("failed to open stream reader: {}",
++                                     _arrow_batches->status().message());
++    }
++    if (_begin) {
++        _begin = false;
+     }
+     return Status::OK();
+ }
+diff --git a/be/src/vec/exec/format/arrow/arrow_stream_reader.h b/be/src/vec/exec/format/arrow/arrow_stream_reader.h
+index eb0acca4ae..f05242636e 100644
+--- a/be/src/vec/exec/format/arrow/arrow_stream_reader.h
++++ b/be/src/vec/exec/format/arrow/arrow_stream_reader.h
+@@ -65,12 +65,15 @@ public:
+                        std::unordered_set<std::string>* missing_cols) override;
+ 
+ private:
++    Status next_arrow_record_batch();
+     RuntimeState* _state;
+     const TFileRangeDesc& _range;
+     const std::vector<SlotDescriptor*>& _file_slot_descs;
+     io::FileReaderSPtr _file_reader;
+     std::unique_ptr<doris::vectorized::ArrowPipInputStream> _pip_stream;
++    std::unique_ptr<arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchStreamReader>>> _arrow_batches;
+     cctz::time_zone _ctzz;
++    bool _begin = true;
+ };
+ } // namespace vectorized
+ } // namespace doris

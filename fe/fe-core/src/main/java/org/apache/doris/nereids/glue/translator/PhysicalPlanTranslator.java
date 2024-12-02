@@ -49,6 +49,8 @@ import org.apache.doris.catalog.Type;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.util.Util;
 import org.apache.doris.datasource.ExternalTable;
+import org.apache.doris.datasource.ck.CKExternalTable;
+import org.apache.doris.datasource.ck.source.CKScanNode;
 import org.apache.doris.datasource.es.source.EsScanNode;
 import org.apache.doris.datasource.hive.HMSExternalTable;
 import org.apache.doris.datasource.hive.HMSExternalTable.DLAType;
@@ -597,6 +599,8 @@ public class PhysicalPlanTranslator extends DefaultPlanVisitor<PlanFragment, Pla
             scanNode = new PaimonScanNode(context.nextPlanNodeId(), tupleDescriptor, false);
         } else if (table instanceof MaxComputeExternalTable) {
             scanNode = new MaxComputeScanNode(context.nextPlanNodeId(), tupleDescriptor, false);
+        } else if (table instanceof CKExternalTable) {
+            scanNode = new CKScanNode(context.nextPlanNodeId(), tupleDescriptor, false);
         } else {
             throw new RuntimeException("do not support table type " + table.getType());
         }

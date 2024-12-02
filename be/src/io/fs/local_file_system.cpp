@@ -85,6 +85,7 @@ Status LocalFileSystem::open_file_impl(const Path& file, FileReaderSPtr* reader,
     if (fsize < 0) {
         RETURN_IF_ERROR(file_size_impl(file, &fsize));
     }
+    LOG(INFO) << "LocalFileSystem::open_file_impl: " << fsize << "\n";
     int fd = -1;
     RETRY_ON_EINTR(fd, open(file.c_str(), O_RDONLY));
     if (fd < 0) {

@@ -33,6 +33,7 @@ import java.util.List;
 @Data
 public class InitDatabaseLog implements Writable {
     public enum Type {
+        CLICKHOUSE,
         HMS,
         ICEBERG,
         ES,

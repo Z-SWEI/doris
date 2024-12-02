@@ -29,6 +29,7 @@
 #include "cctz/time_zone.h"
 #include "common/status.h"
 #include "io/file_factory.h"
+#include "io/fs/buffered_reader.h"
 #include "io/fs/file_reader_writer_fwd.h"
 #include "util/slice.h"
 #include "vec/data_types/data_type.h"
@@ -66,8 +67,15 @@ public:
 
 private:
     RuntimeState* _state;
+    RuntimeProfile* _profile = nullptr;
+    const TFileScanRangeParams& _params;
     const TFileRangeDesc& _range;
+    io::FileSystemProperties _system_properties;
+    io::FileDescription _file_description;
     const std::vector<SlotDescriptor*>& _file_slot_descs;
+    io::IOContext* _io_ctx = nullptr;
+
+    std::shared_ptr<io::FileSystem> _file_system;
     io::FileReaderSPtr _file_reader;
     std::unique_ptr<doris::vectorized::ArrowPipInputStream> _pip_stream;
     cctz::time_zone _ctzz;
