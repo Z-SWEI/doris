@@ -22,17 +22,20 @@
       <groupId>org.apache.doris</groupId>
       <artifactId>fe-core</artifactId>
       <version>${doris.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.doris</groupId>
       <artifactId>fe-common</artifactId>
       <version>${doris.version}</version>
+      <scope>provided</scope>
     </dependency>
     <!-- https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients -->
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
       <version>3.8.0</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
