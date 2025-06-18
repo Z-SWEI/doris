@@ -18,6 +18,7 @@
 package org.apache.doris.plugin.audit;
 
 import com.google.common.base.Strings;
+import com.google.gson.JsonObject;
 import org.apache.doris.common.util.DigitalVersion;
 import org.apache.doris.plugin.AuditEvent;
 import org.apache.doris.plugin.AuditPlugin;
@@ -91,7 +92,7 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
 
     public AuditKafkaPlugin() {
         pluginInfo = new PluginInfo(PluginMgr.BUILTIN_PLUGIN_PREFIX + "AuditKafka", PluginType.AUDIT,
-                "add audit kafka, to send audit log to kafka top", DigitalVersion.fromString("1.0.1"),
+                "add audit kafka, to send audit log to kafka top", DigitalVersion.fromString("1.2.0"),
                 DigitalVersion.fromString("1.8.31"), AuditKafkaPlugin.class.getName(), null, null);
     }
 
@@ -201,9 +202,21 @@ public class AuditKafkaPlugin extends Plugin implements AuditPlugin {
     }
 
     private String toJsonString(AuditEvent event) {
-        JsonElement jsonElement = GSON.toJsonTree(event);
-        jsonElement.getAsJsonObject().addProperty("Cluster", clusterName);
-        return GSON.toJson(jsonElement);
+        JsonObject jsonObj = GSON.toJsonTree(event).getAsJsonObject();
+        String cluster = clusterName;
+
+        if (jsonObj.has("bleemCluster")) {
+            JsonElement elem = jsonObj.remove("bleemCluster");  // 直接 remove，同时获取值
+            if (!elem.isJsonNull()) {
+                String val = elem.getAsString();
+                if (val != null && !val.isEmpty()) {
+                    cluster = val;
+                }
+            }
+        }
+
+        jsonObj.addProperty("Cluster", cluster);
+        return GSON.toJson(jsonObj);
     }
 
     private class LoadWorker implements Runnable {
